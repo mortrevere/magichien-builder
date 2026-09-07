@@ -91,19 +91,34 @@ cards:
 - `assets/processed/digits/<FAMILY>/`: individual 0-9 glyphs.
 - `assets/processed/layers/<CARD>/`: positioned background, subject, frame
   and numbers as separate full-canvas PNGs.
-- `rendered/<CARD>.png`: composed card fronts with DPI metadata.
-- `rendered/CARDS.md`: gallery of the cards rendered by this build, with special
+- `preview/<CARD>.png`: composed card fronts with DPI metadata.
+- `preview/CARDS.md`: gallery of the cards rendered by this build, with special
   (`NN*`) cards first, then families alphabetically and values numerically.
   Image links are relative, so keep the gallery alongside the PNGs.
   `--process-only` does not generate or update the gallery.
+- `preview/index.html`: responsive card gallery with small WebP previews,
+  links to full-resolution PNGs, and a deck download. No JavaScript or external assets.
+- `preview/previews/<CARD>.webp`: small images for the website.
+- `preview/rendered-cards.tar.gz`: all cards from the current build, previews,
+  and both galleries. Extract and open `index.html` to browse locally.
+
+The output directory is controlled by `paths.rendered` (default: `preview`).
 
 ## GitHub Actions
 
-The `Render cards` workflow tests and rebuilds the deck on every push to `main`
-(including merges), and can also be run manually from the Actions tab.
-Download `rendered-cards` from the completed run's artifacts and extract it to
-view `CARDS.md` with its PNGs in a Markdown viewer. Generated files are uploaded
-using [upload-artifact](https://github.com/actions/upload-artifact); they are
-not committed back to the repository. No custom secrets are needed.
+The `Test builder` workflow runs tests on pull requests only.
+The `Render cards` workflow runs on pushes to `main` (including merges), or
+manually from the Actions tab. It rebuilds `preview/` from scratch, commits
+the PNGs, WebP previews, and galleries back to `main`, uploads the `.tar.gz`
+as the `rendered-cards` artifact, and deploys `preview/` to GitHub Pages.
+The archive is available directly from the public gallery and is not committed.
+The built-in token's commits do not trigger another render run.
+
+In **Settings → Pages → Source**, select **GitHub Actions** once, then push.
+The workflow publishes the gallery at the site's root and reports its URL.
+GitHub's branch-based publishing only supports `/` or `/docs`; the included
+[Pages workflow](https://docs.github.com/en/pages/getting-started-with-github-pages/using-custom-workflows-with-github-pages)
+publishes `preview/` directly. No custom secrets are needed. Repository rules
+must allow the workflow's built-in token to push generated files to `main`.
 
 Dependencies are Pillow and PyYAML. Tests use Python's standard library.
