@@ -25,7 +25,7 @@ jobs:
       - uses: actions/checkout@v4
         with:
           ref: main
-      - uses: astral-sh/setup-uv@v9
+      - uses: astral-sh/setup-uv@v6
       - name: Install dependencies
         run: uv sync --locked
       - name: Render deck and gallery
@@ -41,13 +41,13 @@ jobs:
             git commit -m "Rebuild rendered cards"
             git push origin HEAD:main
           fi
-      - uses: actions/upload-artifact@v7
+      - uses: actions/upload-artifact@v4
         with:
           name: rendered-cards
           path: preview/rendered-cards.tar.gz
           if-no-files-found: error
       - uses: actions/configure-pages@v5
-      - uses: actions/upload-pages-artifact@v4
+      - uses: actions/upload-pages-artifact@v3
         with:
           path: preview/
       - uses: actions/deploy-pages@v4
