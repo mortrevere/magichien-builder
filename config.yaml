@@ -33,8 +33,9 @@ layout:
     size: [0.94, 0.94]
   subject:
     # Center and maximum size, as fractions of the fitted frame.
-    center: [0.48, 0.49]
-    size: [0.66, 0.86]
+    center: [0.5, 0.5]
+    # Leave breathing room above tall weapons, hats, and towers.
+    size: [0.66, 0.76]
     scale: 1.0
   numbers:
     height: 0.13  # Fraction of fitted frame height.
@@ -49,8 +50,41 @@ layout:
 families: {}
 # Exact filenames, including the extension. These override family defaults.
 cards:
+  # Balance the main figure when an extended weapon shifts its bounds.
+  BLUE_3.png:
+    subject:
+      center: [0.52, 0.5]
+  BLUE_4.png:
+    subject:
+      center: [0.48, 0.52]
   GREEN_5.png:
     subject:
-      center: [0.48, 0.49]
-      size: [0.66, 0.86]
-      scale: 1.0
+      center: [0.52, 0.5]
+  GREEN_8.png:
+    subject:
+      center: [0.52, 0.5]
+  GREEN_12.png:
+    subject:
+      center: [0.51, 0.51]
+      scale: 0.9
+  MAGE_NN2.png:
+    subject:
+      size: [0.62, 0.76]
+  RED_1.png:
+    subject:
+      center: [0.51, 0.54]
+  RED_4.png:
+    subject:
+      center: [0.5, 0.46]
+  # Keep the outstretched weapons clear of the two-digit corner labels.
+  RED_10.png:
+    subject:
+      center: [0.52, 0.52]
+      size: [0.6, 0.7]
+  RED_11.png:
+    subject:
+      center: [0.52, 0.53]
+      size: [0.6, 0.7]
+  WOAF_NN3.png:
+    subject:
+      center: [0.5, 0.47]
