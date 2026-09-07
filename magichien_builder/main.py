@@ -41,8 +41,10 @@ def number_image(value, digits, height, spacing):
     gap = round(number(spacing, "number spacing") * height)
     if gap < 0:
         raise ValueError("Number spacing cannot be negative")
-    glyphs = [digits[d].resize((max(1, round(digits[d].width * height / digits[d].height)), height),
-                              Image.Resampling.LANCZOS) for d in value]
+    # Exported digits have different vertical padding; align their visible bounds.
+    glyphs = [digits[d].crop(digits[d].getchannel("A").getbbox()) for d in value]
+    glyphs = [glyph.resize((max(1, round(glyph.width * height / glyph.height)), height),
+                           Image.Resampling.LANCZOS) for glyph in glyphs]
     result = Image.new("RGBA", (sum(g.width for g in glyphs) + gap * (len(glyphs) - 1), height))
     x = 0
     for glyph in glyphs:
@@ -69,6 +71,10 @@ def render_card(subject, frame, digits, value, background, card, layout):
         settings = layout["numbers"]
         height = max(1, round(number(settings["height"], "number height", True) * frame.height))
         label = number_image(value, digits, height, settings.get("spacing", 0))
+        if "max_width" in settings:
+            width = number(settings["max_width"], "number max_width", True) * frame.width
+            if label.width > width:
+                label = fitted(label, (width, height))
         for placement in settings["placements"]:
             rotation = number(placement.get("rotation", 0), "rotation")
             rotated = label.rotate(rotation, expand=True, resample=Image.Resampling.BICUBIC)

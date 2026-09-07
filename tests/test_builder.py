@@ -4,7 +4,7 @@ import tarfile
 import tempfile
 import unittest
 
-from PIL import Image
+from PIL import Image, ImageChops
 
 from magichien_builder.assets import AssetCleaner, discover_cards, split_digits
 from magichien_builder.config import dimensions, layout_for, load_config
@@ -72,7 +72,7 @@ class BuilderTests(unittest.TestCase):
         self.assertEqual(len(digits), 10)
         self.assertEqual(digits["5"].size, (5, 20))
         self.assertEqual(digits["5"].getpixel((2, 5)), (80, 30, 40, 100))
-        self.assertEqual(number_image("12", digits, 20, .2).size, (14, 20))
+        self.assertEqual(number_image("12", digits, 20, .2).size, (18, 20))
         with self.assertRaisesRegex(ValueError, "missing glyphs: 0"):
             number_image("10", {k: v for k, v in digits.items() if k != "0"}, 20, 0)
         with self.assertRaisesRegex(ValueError, "expected 10"):
@@ -103,12 +103,36 @@ class BuilderTests(unittest.TestCase):
                 self.assertEqual(list(digits), list("1234567890"))
                 self.assertEqual(digits["0"].getpixel((2, 5)), (180, 30, 40, 100))
                 value = number_image("10", digits, 20, .2)
-                self.assertEqual(value.size, (14, 20))
-                self.assertEqual(value.getpixel((11, 5)), (180, 30, 40, 100))
+                self.assertEqual(value.size, (18, 20))
+                # Resampling translucent pixels can round a color channel by one.
+                for actual, expected in zip(value.getpixel((14, 5)), (180, 30, 40, 100)):
+                    self.assertAlmostEqual(actual, expected, delta=1)
+
+    def test_number_alignment_and_corner_width(self):
+        one = Image.new("RGBA", (10, 30))
+        zero = Image.new("RGBA", (20, 30))
+        one.paste("red", (0, 8, 10, 28))
+        zero.paste("blue", (0, 0, 20, 18))
+        label = number_image("10", {"1": one, "0": zero}, 40, .1)
+        for channel in ("R", "B"):
+            bounds = label.getchannel(channel).getbbox()
+            self.assertEqual((bounds[1], bounds[3]), (0, 40))
+        layout = {"frame": {"size": [1, 1], "center": [.5, .5]},
+                  "subject": {"size": [.5, .5], "center": [.5, .5]},
+                  "numbers": {"height": .2, "max_width": .18, "placements": [
+                      {"center": [.2, .2], "rotation": 0},
+                      {"center": [.8, .8], "rotation": 180}]}}
+        transparent = Image.new("RGBA", (200, 200))
+        _, layers, _ = render_card(transparent, transparent, {"1": one, "0": zero},
+                                   "10", None, {"size_px": [200, 200], "bleed_mm": 0}, layout)
+        for box in ((0, 0, 100, 100), (100, 100, 200, 200)):
+            bounds = layers["04-numbers"].crop(box).getbbox()
+            self.assertLessEqual(bounds[2] - bounds[0], 36)
 
     def test_rotation_no_number_and_bleed(self):
         glyph = Image.new("RGBA", (10, 20))
         glyph.paste("red", (0, 0, 5, 10))
+        glyph.putpixel((9, 19), (0, 0, 255, 255))
         layout = {"frame": {"size": [.5, .5], "center": [.5, .5]},
                   "subject": {"size": [.5, .5], "center": [.5, .5]},
                   "numbers": {"height": .4, "placements": [
@@ -125,6 +149,26 @@ class BuilderTests(unittest.TestCase):
         self.assertEqual(result.getpixel((0, 0)), (255, 255, 255, 255))
         _, layers, _ = render_card(transparent, transparent, {}, None, None, args[5], layout)
         self.assertIsNone(layers["04-numbers"].getbbox())
+
+    def test_two_digit_labels_clear_supplied_frames(self):
+        config = load_config(ROOT / "config.yaml")
+        cleaner = AssetCleaner(config["cleanup"])
+        transparent = Image.new("RGBA", (1, 1))
+        for family in ("BLUE", "GREEN", "RED"):
+            assets = {}
+            for prefix in ("FRAME", "NUMBERS"):
+                filename = f"{prefix}_{family}.png"
+                with Image.open(ROOT / "assets" / filename) as source:
+                    assets[prefix] = cleaner.clean(source, filename)
+            digits = split_digits(assets["NUMBERS"])
+            for value in ("10", "11", "12", "13"):
+                with self.subTest(family=family, value=value):
+                    _, layers, _ = render_card(transparent, assets["FRAME"], digits, value,
+                                               None, config["card"],
+                                               layout_for(config, family, f"{family}_{value}.png"))
+                    frame, numbers = [layers[key].getchannel("A").point(lambda a: 255 if a > 32 else 0)
+                                      for key in ("03-frame", "04-numbers")]
+                    self.assertIsNone(ImageChops.multiply(frame, numbers).getbbox())
 
     def test_supplied_assets_end_to_end(self):
         config = load_config(ROOT / "config.yaml")

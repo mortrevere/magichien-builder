@@ -96,6 +96,9 @@ Positions and sizes are fractions: `[0.5, 0.5]` is the center. Frame settings
 are relative to the trimmed card; artwork and number settings are relative
 to the fitted frame. `scale` enlarges or shrinks artwork without changing its
 proportions. Number rotations are counterclockwise degrees.
+Digits are aligned and sized by their visible bounds. `numbers.max_width`
+caps the complete label width as a fraction of the fitted frame, shrinking
+wide labels proportionally to keep them inside the corners.
 
 Card settings take precedence over family settings, which take precedence
 over the global layout. Only the fields you supply are overridden; a number
