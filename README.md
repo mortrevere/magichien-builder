@@ -99,6 +99,9 @@ proportions. Number rotations are counterclockwise degrees.
 Digits are aligned and sized by their visible bounds. `numbers.max_width`
 caps the complete label width as a fraction of the fitted frame, shrinking
 wide labels proportionally to keep them inside the corners.
+Each placement can set `align: left`, `center` (the default), or `right`
+within that width, after rotation. The supplied top-left and bottom-right
+placements are independently positioned and edge-aligned to their frame details.
 
 Card settings take precedence over family settings, which take precedence
 over the global layout. Only the fields you supply are overridden; a number

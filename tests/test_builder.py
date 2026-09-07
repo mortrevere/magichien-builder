@@ -120,14 +120,18 @@ class BuilderTests(unittest.TestCase):
         layout = {"frame": {"size": [1, 1], "center": [.5, .5]},
                   "subject": {"size": [.5, .5], "center": [.5, .5]},
                   "numbers": {"height": .2, "max_width": .18, "placements": [
-                      {"center": [.2, .2], "rotation": 0},
-                      {"center": [.8, .8], "rotation": 180}]}}
+                      {"center": [.2, .2], "align": "left", "rotation": 0},
+                      {"center": [.8, .8], "align": "right", "rotation": 180}]}}
         transparent = Image.new("RGBA", (200, 200))
-        _, layers, _ = render_card(transparent, transparent, {"1": one, "0": zero},
-                                   "10", None, {"size_px": [200, 200], "bleed_mm": 0}, layout)
-        for box in ((0, 0, 100, 100), (100, 100, 200, 200)):
-            bounds = layers["04-numbers"].crop(box).getbbox()
-            self.assertLessEqual(bounds[2] - bounds[0], 36)
+        for value in ("1", "10"):
+            _, layers, _ = render_card(transparent, transparent, {"1": one, "0": zero},
+                                       value, None, {"size_px": [200, 200], "bleed_mm": 0}, layout)
+            top = layers["04-numbers"].crop((0, 0, 100, 100)).getbbox()
+            bottom = layers["04-numbers"].crop((100, 100, 200, 200)).getbbox()
+            self.assertEqual(top[0], 22)
+            self.assertEqual(bottom[2], 78)
+            for bounds in (top, bottom):
+                self.assertLessEqual(bounds[2] - bounds[0], 36)
 
     def test_rotation_no_number_and_bleed(self):
         glyph = Image.new("RGBA", (10, 20))
@@ -150,7 +154,7 @@ class BuilderTests(unittest.TestCase):
         _, layers, _ = render_card(transparent, transparent, {}, None, None, args[5], layout)
         self.assertIsNone(layers["04-numbers"].getbbox())
 
-    def test_two_digit_labels_clear_supplied_frames(self):
+    def test_number_labels_clear_supplied_frames(self):
         config = load_config(ROOT / "config.yaml")
         cleaner = AssetCleaner(config["cleanup"])
         transparent = Image.new("RGBA", (1, 1))
@@ -161,7 +165,7 @@ class BuilderTests(unittest.TestCase):
                 with Image.open(ROOT / "assets" / filename) as source:
                     assets[prefix] = cleaner.clean(source, filename)
             digits = split_digits(assets["NUMBERS"])
-            for value in ("10", "11", "12", "13"):
+            for value in map(str, range(1, 14)):
                 with self.subTest(family=family, value=value):
                     _, layers, _ = render_card(transparent, assets["FRAME"], digits, value,
                                                None, config["card"],

@@ -71,6 +71,7 @@ def render_card(subject, frame, digits, value, background, card, layout):
         settings = layout["numbers"]
         height = max(1, round(number(settings["height"], "number height", True) * frame.height))
         label = number_image(value, digits, height, settings.get("spacing", 0))
+        width = label.width
         if "max_width" in settings:
             width = number(settings["max_width"], "number max_width", True) * frame.width
             if label.width > width:
@@ -78,7 +79,10 @@ def render_card(subject, frame, digits, value, background, card, layout):
         for placement in settings["placements"]:
             rotation = number(placement.get("rotation", 0), "rotation")
             rotated = label.rotate(rotation, expand=True, resample=Image.Resampling.BICUBIC)
-            layer, _ = overlay(full, rotated, position(placement["center"], frame_origin, frame.size))
+            x, y = position(placement["center"], frame_origin, frame.size)
+            alignment = {"left": -1, "center": 0, "right": 1}[placement.get("align", "center")]
+            x += alignment * (width - rotated.width) / 2
+            layer, _ = overlay(full, rotated, (x, y))
             numbers = Image.alpha_composite(numbers, layer)
     layers = {"01-background": base, "02-subject": subject_layer,
               "03-frame": frame_layer, "04-numbers": numbers}

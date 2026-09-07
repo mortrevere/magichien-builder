@@ -38,13 +38,16 @@ layout:
     size: [0.66, 0.76]
     scale: 1.0
   numbers:
-    height: 0.13  # Fraction of fitted frame height.
+    height: 0.12  # Fraction of fitted frame height.
     max_width: 0.18 # Fit the whole label inside the corner, including two digits.
     spacing: 0.05 # Gap between digits, as a fraction of number height.
     placements:
-      - center: [0.19, 0.145]
+      # Align to the inner edges of each corner, independently of digit count.
+      - center: [0.17, 0.145]
+        align: left
         rotation: 0
-      - center: [0.8, 0.885]
+      - center: [0.81, 0.895]
+        align: right
         rotation: 180
 
 # Each override can contain frame, subject, and/or numbers layout fields.
