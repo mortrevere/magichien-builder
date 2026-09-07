@@ -1,0 +1,8 @@
+.venv/
+__pycache__/
+*.egg-info/
+build/
+dist/
+assets/processed/
+rendered/
+preview/*.tar.gz
