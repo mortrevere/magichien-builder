@@ -1,77 +1,84 @@
 # Magichien Builder
 
-Compose a printable card deck from transparent PNG subjects, frames and number sheets.
-Python 3.12 and uv are required.
+**[Browse the cards →](https://mortrevere.github.io/magichien-builder/)**
+
+Create printable Magichien cards from artwork, frames, and number sheets.
+The gallery shows special cards first, then each family in numeric order.
+Click a card to open its full-resolution PNG, or choose **Download all cards**
+to get the whole deck. No installation is needed to browse or download.
+
+## Build your own deck
+
+Install Python 3.12 and uv, then run from this repository:
 
 ```sh
 uv sync --locked
 uv run magichien-builder --config config.yaml
-uv run magichien-builder --config config.yaml --process-only
-uv run python -m unittest discover -s tests
 ```
 
-All paths in the YAML are relative to that configuration file. Source files are
-never modified. Only PNG files directly inside `assets/` are processed; nested
-directories are ignored. Each build reads the originals, so edits to the YAML
-are reflected immediately. Existing generated files with matching names are
-replaced; unrelated or obsolete outputs are not deleted automatically.
+Open `preview/index.html` in your browser to see the result. You'll also find:
 
-## Asset names
+- `preview/<CARD>.png`: full-resolution card fronts, ready to print.
+- `preview/CARDS.md`: a Markdown gallery.
+- `preview/rendered-cards.tar.gz`: the complete deck, galleries, and web previews.
+  Extract it and open `index.html` to browse offline.
 
-- `GREEN_5.png` uses `FRAME_GREEN.png` and digit 5 from `NUMBERS_GREEN.png`.
-- `WOAF_NN1.png` uses `FRAME_WOAF.png`, without an added number.
-- Families are arbitrary names, not a fixed list of colors.
-- Number sheets must contain all ten digits `1234567890` in a single row,
-  with zero last. Multi-digit values are composed from these glyphs.
-  Cards requiring unavailable glyphs
-  or missing/unusable sheets are skipped with a warning; other cards render.
-- Backgrounds and reference images do not become cards. Other PNGs become
-  cards only when their names match `<FAMILY>_<number>` or `<FAMILY>_NN*`.
+To change the deck, edit [config.yaml](config.yaml) or replace the source
+artwork, then run the build again. Your source images are never modified.
 
-## Print settings
+## Add cards
 
-The default `card` settings are `size_mm: [63, 89]`, `dpi: 300`, and
-`bleed_mm: 3`. The trim area is 744x1051 pixels; the full PNG is 815x1122
-pixels. Opposing bleed margins can differ by one pixel due to rounding.
-Print at the embedded DPI, with automatic page fitting disabled.
+Put transparent PNG artwork directly in `assets/`. Subfolders are ignored.
+Use matching family names for the artwork, frame, and number sheet:
 
-To specify pixels, replace `size_mm` with `size_px: [744, 1051]`.
-Do not specify both. DPI defaults to 300 and controls physical bleed conversion
-even in pixel mode. Set `bleed_mm: 0` for exact trim-sized exports.
-The background covers the full bleed canvas; artwork positions use the trim
-area. There are no crop marks or PDF sheets.
+| Card type | Artwork | Frame | Number sheet |
+| --- | --- | --- | --- |
+| Numbered card | `GREEN_5.png` | `FRAME_GREEN.png` | `NUMBERS_GREEN.png` |
+| Special card, without a number | `WOAF_NN1.png` | `FRAME_WOAF.png` | Not needed |
 
-## Cleanup and layout
+Choose any family name. Numbered cards use `<FAMILY>_<number>.png`; special
+cards use `<FAMILY>_NN*.png`. Backgrounds and reference images aren't cards.
+Each number sheet must contain **1234567890**, in that order, in one row.
+Leave space between digits, including their shadows. Values such as 10 or 12
+are assembled automatically.
 
-`cleanup.crop` is `[left, top, right, bottom]` in fractions of each source
-image. The supplied exports retain the top 92%, removing the watermark.
-This is a calibrated crop, not automatic watermark recognition: adjust it for
-new exports whose artwork or watermark occupies a different region.
-`cleanup.assets` overrides crop and `trim` by exact filename. The supplied
-background retains its entire image. Set `background: null` for transparency.
+## Configure the cards
 
-Digit detection uses `digits.detection_alpha` only to locate boundaries; the
-output retains original alpha values. Overlapping shadows produce a warning
-and are divided with approximate column crops; faint neighboring shadow
-fragments may remain because the original glyphs overlap. For clean splitting,
-place each digit in its own column, sufficiently spaced apart including its
-shadow. Sheets that cannot be split into ten digits produce a warning; their
-dependent cards are skipped. To correct a sheet manually,
-set `digits.split_boundaries.NUMBERS_GREEN.png` to nine increasing x pixel coordinates measured in its
-**cleaned** image. Extracted digits share the
-sheet's vertical extent to retain alignment.
+[config.yaml](config.yaml) controls print size, image cleanup, and placement.
+All file paths are relative to the configuration file. The main settings are:
 
-Frame `center` and `size` are fractions of the trim canvas. The frame fits its
-box without changing proportions. Subject `center` and `size` are fractions
-of the **fitted frame**, and `scale` multiplies its proportional fit. Number
-`height` is a fraction of frame height; `spacing` is a fraction of number
-height. Placement centers are relative to the fitted frame, and rotations are
-counterclockwise degrees. Composition order is background, subject, frame,
-numbers. Oversized or off-center layers are clipped at the output canvas.
+| Setting | What you can change |
+| --- | --- |
+| `card` | Card dimensions, print resolution, and bleed |
+| `background` | Background image; use `null` for transparency |
+| `cleanup` | Crop source images and trim transparent margins |
+| `layout` | Position and size of the frame, artwork, and numbers |
+| `families` | Layout adjustments for every card in one family |
+| `cards` | Layout adjustments for a single source filename |
+| `paths` | Source, intermediate, and final output directories |
 
-Global `layout` fields can be overridden by `families` and then by `cards`,
-whose keys are exact source filenames including the extension.
-Fields are merged within each section; a placement list is replaced in full:
+### Print size
+
+The supplied configuration makes **63 × 89 mm cards at 300 DPI**, with
+**3 mm bleed** around each edge. Each full PNG is 815 × 1122 pixels.
+Print at the embedded DPI with automatic page fitting disabled.
+Exports are individual card fronts; there are no PDF sheets or crop marks.
+
+```yaml
+card:
+  size_mm: [63, 89]
+  dpi: 300
+  bleed_mm: 3
+```
+
+For exact pixel dimensions, replace `size_mm` with `size_px: [744, 1051]`;
+use only one of these settings. Set `bleed_mm: 0` to export without bleed.
+
+### Adjust artwork and numbers
+
+Start with `layout` for changes across the deck. Use `families` or `cards`
+for exceptions. For example, this makes GREEN numbers smaller and adjusts
+only the artwork on GREEN_5:
 
 ```yaml
 families:
@@ -85,40 +92,64 @@ cards:
       scale: 0.95
 ```
 
-## Outputs
+Positions and sizes are fractions: `[0.5, 0.5]` is the center. Frame settings
+are relative to the trimmed card; artwork and number settings are relative
+to the fitted frame. `scale` enlarges or shrinks artwork without changing its
+proportions. Number rotations are counterclockwise degrees.
 
-- `assets/processed/cleaned/`: cropped, alpha-trimmed source assets.
-- `assets/processed/digits/<FAMILY>/`: individual 0-9 glyphs.
-- `assets/processed/layers/<CARD>/`: positioned background, subject, frame
-  and numbers as separate full-canvas PNGs.
-- `preview/<CARD>.png`: composed card fronts with DPI metadata.
-- `preview/CARDS.md`: gallery of the cards rendered by this build, with special
-  (`NN*`) cards first, then families alphabetically and values numerically.
-  Image links are relative, so keep the gallery alongside the PNGs.
-  `--process-only` does not generate or update the gallery.
-- `preview/index.html`: responsive card gallery with small WebP previews,
-  links to full-resolution PNGs, and a deck download. No JavaScript or external assets.
-- `preview/previews/<CARD>.webp`: small images for the website.
-- `preview/rendered-cards.tar.gz`: all cards from the current build, previews,
-  and both galleries. Extract and open `index.html` to browse locally.
+Card settings take precedence over family settings, which take precedence
+over the global layout. Only the fields you supply are overridden; a number
+placement list replaces the whole list. Layers are drawn as background,
+artwork, frame, then numbers, with anything outside the canvas clipped.
 
-The output directory is controlled by `paths.rendered` (default: `preview`).
+### Crop and clean source images
 
-## GitHub Actions
+`cleanup.crop` uses `[left, top, right, bottom]` as fractions of the source
+image. The supplied `[0, 0, 1, 0.92]` keeps the top 92% to remove the watermark
+on these exports. Adjust it for artwork with different margins.
+Use `cleanup.assets` with an exact filename to override its crop or `trim`.
+The supplied background keeps its full image.
 
-The `Test builder` workflow runs tests on pull requests only.
-The `Render cards` workflow runs on pushes to `main` (including merges), or
-manually from the Actions tab. It rebuilds `preview/` from scratch, commits
-the PNGs, WebP previews, and galleries back to `main`, uploads the `.tar.gz`
-as the `rendered-cards` artifact, and deploys `preview/` to GitHub Pages.
-The archive is available directly from the public gallery and is not committed.
-The built-in token's commits do not trigger another render run.
+To inspect cleanup and extracted digits without rendering the deck:
 
-In **Settings → Pages → Source**, select **GitHub Actions** once, then push.
-The workflow publishes the gallery at the site's root and reports its URL.
-GitHub's branch-based publishing only supports `/` or `/docs`; the included
-[Pages workflow](https://docs.github.com/en/pages/getting-started-with-github-pages/using-custom-workflows-with-github-pages)
-publishes `preview/` directly. No custom secrets are needed. Repository rules
-must allow the workflow's built-in token to push generated files to `main`.
+```sh
+uv run magichien-builder --config config.yaml --process-only
+```
 
-Dependencies are Pillow and PyYAML. Tests use Python's standard library.
+Look in `assets/processed/cleaned/` and `assets/processed/digits/`.
+A full build also saves each card's separate layers in
+`assets/processed/layers/`. These intermediate files are ignored by Git.
+
+If a number sheet can't be split into ten digits, affected cards are skipped
+with a warning. Overlapping shadows may leave fragments on neighboring
+numbers. Space the source digits farther apart, or set
+`digits.split_boundaries.NUMBERS_GREEN.png` to nine increasing x coordinates
+measured in the **cleaned** sheet. `digits.detection_alpha` controls boundary
+detection without changing the glyphs' transparency.
+
+## Publish changes
+
+Push or merge changes to `main` to rebuild and publish the
+[live gallery](https://mortrevere.github.io/magichien-builder/).
+The workflow commits the generated cards and galleries in `preview/` back to
+`main`, makes the archive available to download, and deploys the site to
+GitHub Pages. You can follow progress or start a build manually in
+[Actions](https://github.com/mortrevere/magichien-builder/actions).
+Tests run on pull requests only.
+
+For a fork, select **Settings → Pages → Source → GitHub Actions** once.
+Repository rules must allow the workflow to push generated files to `main`.
+No custom secrets are needed.
+
+Local builds replace matching outputs but leave old files in place. The
+publishing workflow rebuilds `preview/` from scratch, so removed cards also
+disappear from the published site. Keep `paths.rendered` and the workflow's
+`preview/` paths in sync if you change the output directory.
+
+## Development
+
+The builder uses Pillow and PyYAML. Run the test suite with:
+
+```sh
+uv run python -m unittest discover -s tests
+```
