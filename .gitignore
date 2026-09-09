@@ -4,5 +4,4 @@ __pycache__/
 build/
 dist/
 assets/processed/
-rendered/
 preview/*.tar.gz

@@ -43,7 +43,7 @@ layout:
     spacing: 0.05 # Gap between digits, as a fraction of number height.
     placements:
       # Align to the inner edges of each corner, independently of digit count.
-      - center: [0.17, 0.145]
+      - center: [0.19, 0.13]
         align: left
         rotation: 0
       - center: [0.81, 0.895]
