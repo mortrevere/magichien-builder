@@ -16,7 +16,8 @@ uv sync --locked
 uv run magichien-builder --config config.yaml
 ```
 
-Open `preview/index.html` in your browser to see the result. You'll also find:
+Cards render and export eight at a time. Open `preview/index.html` in your
+browser to see the result. You'll also find:
 
 - `preview/<CARD>.png`: full-resolution card fronts, ready to print.
 - `preview/CARDS.md`: a Markdown gallery.

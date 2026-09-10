@@ -71,6 +71,9 @@ cards:
     subject:
       center: [0.51, 0.51]
       scale: 0.9
+  GREEN_13.png:
+    subject:
+      center: [0.48, 0.53]
   MAGE_NN2.png:
     subject:
       size: [0.62, 0.76]

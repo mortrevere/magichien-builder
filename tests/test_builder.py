@@ -2,7 +2,9 @@ from pathlib import Path
 import shutil
 import tarfile
 import tempfile
+from threading import Barrier, Lock
 import unittest
+from unittest.mock import patch
 
 from PIL import Image, ImageChops
 
@@ -15,6 +17,42 @@ ROOT = Path(__file__).resolve().parents[1]
 
 
 class BuilderTests(unittest.TestCase):
+    def test_build_runs_eight_cards_at_once(self):
+        barrier = Barrier(8, timeout=10)
+        lock = Lock()
+        active = peak = 0
+
+        def concurrent_render(*args):
+            nonlocal active, peak
+            with lock:
+                active += 1
+                peak = max(peak, active)
+            try:
+                barrier.wait()
+                return render_card(*args)
+            finally:
+                with lock:
+                    active -= 1
+
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary)
+            assets = root / "assets"
+            assets.mkdir()
+            names = [f"GREEN_NN{i:02}.png" for i in range(16)]
+            for name in ["FRAME_GREEN.png", *names]:
+                Image.new("RGBA", (20, 20), "red").save(assets / name)
+            config = load_config(ROOT / "config.yaml")
+            config["paths"] = {"assets": assets, "processed": root / "processed", "rendered": root / "rendered"}
+            config["background"] = None
+            config["card"] = {"size_px": [20, 30], "bleed_mm": 0}
+            with patch("magichien_builder.main.render_card", side_effect=concurrent_render):
+                outputs = build(config)
+            self.assertEqual(peak, 8)
+            self.assertEqual([output.name for output in outputs], names)
+            self.assertTrue(all(output.is_file() for output in outputs))
+            with tarfile.open(root / "rendered/rendered-cards.tar.gz") as archive:
+                self.assertTrue(set(names).issubset(archive.getnames()))
+
     def test_catalog_order_and_relative_images(self):
         with tempfile.TemporaryDirectory() as temporary:
             directory = Path(temporary)

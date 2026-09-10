@@ -1,4 +1,5 @@
 import argparse
+from concurrent.futures import ThreadPoolExecutor
 from html import escape
 from itertools import groupby
 import logging
@@ -243,11 +244,12 @@ def build(config, process_only=False):
     if process_only:
         return []
     background = cleaned[background_path.stem] if background_path else None
-    outputs = []
     paths["rendered"].mkdir(parents=True, exist_ok=True)
     previews = paths["rendered"] / "previews"
     previews.mkdir(exist_ok=True)
-    for stem, family, value in cards:
+
+    def build_card(card):
+        stem, family, value = card
         result, layers, dpi = render_card(cleaned[stem], cleaned[f"FRAME_{family}"],
                                           sheets.get(family, {}), value, background,
                                           config["card"], layout_for(config, family, filenames[stem]))
@@ -259,7 +261,10 @@ def build(config, process_only=False):
         result.save(output, dpi=(dpi, dpi))
         result.thumbnail((360, 510), Image.Resampling.LANCZOS)
         result.save(previews / f"{stem}.webp", quality=85)
-        outputs.append(output)
+        return output
+
+    with ThreadPoolExecutor(max_workers=8) as workers:
+        outputs = list(workers.map(build_card, cards))
     write_catalog(cards, paths["rendered"])
     archive_files = [*outputs, *(previews / f"{stem}.webp" for stem, _, _ in cards),
                      paths["rendered"] / "CARDS.md", paths["rendered"] / "index.html"]
