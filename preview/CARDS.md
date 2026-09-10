@@ -1,6 +1,6 @@
 # Cards
 
-43 rendered cards. Special cards first, then families in numeric order.
+44 rendered cards. Special cards first, then families in numeric order.
 
 ## Special cards
 
@@ -63,4 +63,5 @@
 | RED_9 | <img src="RED_9.png" alt="RED_9" width="180"> |
 | RED_10 | <img src="RED_10.png" alt="RED_10" width="180"> |
 | RED_11 | <img src="RED_11.png" alt="RED_11" width="180"> |
+| RED_12 | <img src="RED_12.png" alt="RED_12" width="180"> |
 | RED_13 | <img src="RED_13.png" alt="RED_13" width="180"> |
