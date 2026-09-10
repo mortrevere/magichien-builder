@@ -133,8 +133,9 @@ html:has(#gallery[open]) { overflow: hidden; }
 <header><h1>Magichien</h1><a href="rendered-cards.tar.gz" download>Download all cards</a></header>
 <main>''']
     for group, members in groupby(cards, key=lambda card: "Special cards" if card[2] is None else card[1]):
+        members = list(members)
         lines.extend([f"## {escape(group)}", "", "| Card | Preview |", "| --- | --- |"])
-        page.append(f'<section><h2>{escape(group)}</h2><div class="cards">')
+        page.append(f'<section><h2>{escape(group)} ({len(members)})</h2><div class="cards">')
         for stem, _, _ in members:
             label = escape(stem).replace("|", "&#124;")
             lines.append(f'| {label} | <img src="{quote(stem + ".png")}" alt="{label}" width="180"> |')
