@@ -1,6 +1,6 @@
 # Cards
 
-36 rendered cards. Special cards first, then families in numeric order.
+37 rendered cards. Special cards first, then families in numeric order.
 
 ## Special cards
 
@@ -26,6 +26,7 @@
 | BLUE_8 | <img src="BLUE_8.png" alt="BLUE_8" width="180"> |
 | BLUE_9 | <img src="BLUE_9.png" alt="BLUE_9" width="180"> |
 | BLUE_10 | <img src="BLUE_10.png" alt="BLUE_10" width="180"> |
+| BLUE_11 | <img src="BLUE_11.png" alt="BLUE_11" width="180"> |
 | BLUE_12 | <img src="BLUE_12.png" alt="BLUE_12" width="180"> |
 | BLUE_13 | <img src="BLUE_13.png" alt="BLUE_13" width="180"> |
 
