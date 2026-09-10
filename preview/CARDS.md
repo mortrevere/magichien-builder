@@ -1,6 +1,6 @@
 # Cards
 
-44 rendered cards. Special cards first, then families in numeric order.
+45 rendered cards. Special cards first, then families in numeric order.
 
 ## Special cards
 
@@ -8,6 +8,7 @@
 | --- | --- |
 | MAGE_NN1 | <img src="MAGE_NN1.png" alt="MAGE_NN1" width="180"> |
 | MAGE_NN2 | <img src="MAGE_NN2.png" alt="MAGE_NN2" width="180"> |
+| MAGE_NN3 | <img src="MAGE_NN3.png" alt="MAGE_NN3" width="180"> |
 | WOAF_NN1 | <img src="WOAF_NN1.png" alt="WOAF_NN1" width="180"> |
 | WOAF_NN2 | <img src="WOAF_NN2.png" alt="WOAF_NN2" width="180"> |
 | WOAF_NN3 | <img src="WOAF_NN3.png" alt="WOAF_NN3" width="180"> |
