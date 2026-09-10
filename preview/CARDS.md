@@ -1,6 +1,6 @@
 # Cards
 
-37 rendered cards. Special cards first, then families in numeric order.
+42 rendered cards. Special cards first, then families in numeric order.
 
 ## Special cards
 
@@ -52,9 +52,14 @@
 | Card | Preview |
 | --- | --- |
 | RED_1 | <img src="RED_1.png" alt="RED_1" width="180"> |
+| RED_2 | <img src="RED_2.png" alt="RED_2" width="180"> |
+| RED_3 | <img src="RED_3.png" alt="RED_3" width="180"> |
 | RED_4 | <img src="RED_4.png" alt="RED_4" width="180"> |
+| RED_5 | <img src="RED_5.png" alt="RED_5" width="180"> |
 | RED_6 | <img src="RED_6.png" alt="RED_6" width="180"> |
 | RED_7 | <img src="RED_7.png" alt="RED_7" width="180"> |
+| RED_8 | <img src="RED_8.png" alt="RED_8" width="180"> |
+| RED_9 | <img src="RED_9.png" alt="RED_9" width="180"> |
 | RED_10 | <img src="RED_10.png" alt="RED_10" width="180"> |
 | RED_11 | <img src="RED_11.png" alt="RED_11" width="180"> |
 | RED_13 | <img src="RED_13.png" alt="RED_13" width="180"> |
