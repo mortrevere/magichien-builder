@@ -28,6 +28,8 @@ jobs:
       - uses: astral-sh/setup-uv@v6
       - name: Install dependencies
         run: uv sync --locked
+      - name: Download print colour profile
+        run: uv run python scripts/fetch-print-profile.py
       - name: Render deck and gallery
         run: |
           rm -rf preview
@@ -44,7 +46,9 @@ jobs:
       - uses: actions/upload-artifact@v4
         with:
           name: rendered-cards
-          path: preview/rendered-cards.tar.gz
+          path: |
+            preview/rendered-cards.tar.gz
+            preview/rendered-cards.pdf
           if-no-files-found: error
       - uses: actions/configure-pages@v5
       - uses: actions/upload-pages-artifact@v3

@@ -42,6 +42,8 @@ class BuilderTests(unittest.TestCase):
             for name in ["FRAME_GREEN.png", *names]:
                 Image.new("RGBA", (20, 20), "red").save(assets / name)
             config = load_config(ROOT / "config.yaml")
+            config.pop("pdf")
+            config.pop("back")
             config["paths"] = {"assets": assets, "processed": root / "processed", "rendered": root / "rendered"}
             config["background"] = None
             config["card"] = {"size_px": [20, 30], "bleed_mm": 0}
@@ -69,6 +71,14 @@ class BuilderTests(unittest.TestCase):
             self.assertEqual(sorted(order, key=page.index), order)
             self.assertIn('src="previews/SPACE%20FAMILY_1.webp"', page)
             self.assertIn('href="rendered-cards.tar.gz"', page)
+            self.assertNotIn('href="rendered-cards.pdf"', page)
+            write_catalog(cards, directory, back=True, pdf=True)
+            page = (directory / "index.html").read_text()
+            self.assertIn('href="rendered-cards.pdf" download>PDF</a>', page)
+            self.assertIn('download>tar.gz</a>', page)
+            self.assertIn('src="previews/BACK.webp"', page)
+            self.assertLess(page.index('Shared back'), page.index('Special cards'))
+            self.assertIn('6 rendered cards', (directory / "CARDS.md").read_text())
             write_catalog([], directory)
             self.assertIn("0 rendered cards", (directory / "CARDS.md").read_text())
             self.assertNotIn("GREEN_2", (directory / "CARDS.md").read_text())
@@ -220,10 +230,11 @@ class BuilderTests(unittest.TestCase):
             # Fix the input set so adding new deck assets cannot race this test.
             for filename in ("GREEN_5.png", "WOAF_NN1.png", "FRAME_GREEN.png", "FRAME_WOAF.png",
                              "NUMBERS_GREEN.png", "NUMBERS_BLUE.png", "NUMBERS_RED.png",
-                             "NUMBERS_YELLOW.png", "background.png"):
+                             "NUMBERS_YELLOW.png", "background.png", "BACK.png"):
                 shutil.copy2(ROOT / "assets" / filename, assets / filename)
             config["paths"]["assets"] = assets
             config["background"] = assets / "background.png"
+            config["back"] = assets / "BACK.png"
             config["paths"]["processed"] = Path(temporary) / "processed"
             config["paths"]["rendered"] = Path(temporary) / "rendered"
             outputs = build(config)
@@ -233,7 +244,8 @@ class BuilderTests(unittest.TestCase):
             with tarfile.open(config["paths"]["rendered"] / "rendered-cards.tar.gz") as archive:
                 self.assertEqual(set(archive.getnames()), {
                     "GREEN_5.png", "WOAF_NN1.png", "previews/GREEN_5.webp",
-                    "previews/WOAF_NN1.webp", "CARDS.md", "index.html"})
+                    "previews/WOAF_NN1.webp", "CARDS.md", "index.html",
+                    "BACK.png", "previews/BACK.webp", "rendered-cards.pdf"})
             with Image.open(config["paths"]["rendered"] / "previews/GREEN_5.webp") as preview:
                 self.assertLessEqual(preview.width, 360)
                 self.assertLessEqual(preview.height, 510)
@@ -242,13 +254,13 @@ class BuilderTests(unittest.TestCase):
                 self.assertEqual(glyphs, set("1234567890"))
             for output in outputs:
                 with Image.open(output) as image:
-                    self.assertEqual(image.size, (815, 1122))
+                    self.assertEqual(image.size, (803, 1110))
                     self.assertAlmostEqual(image.info["dpi"][0], 300, delta=.02)
                     self.assertEqual(image.getchannel("A").getextrema(), (255, 255))
             with Image.open(config["paths"]["processed"] / "cleaned/FRAME_GREEN.png") as image:
                 self.assertEqual(image.size, (1343, 1791))
             with Image.open(config["paths"]["processed"] / "cleaned/GREEN_5.png") as image:
-                self.assertEqual(image.size, (860, 1548))
+                self.assertEqual(image.size, (944, 744))
             with Image.open(config["paths"]["processed"] / "layers/WOAF_NN1/04-numbers.png") as image:
                 self.assertIsNone(image.getbbox())
 
@@ -263,6 +275,8 @@ class BuilderTests(unittest.TestCase):
                 if name.startswith("MAGE"):
                     Image.new("RGBA", (10, 10), "red").save(assets / "FRAME_MAGE.png")
                 config = load_config(ROOT / "config.yaml")
+                config.pop("pdf")
+                config.pop("back")
                 config["paths"] = {"assets": assets, "processed": root / "processed", "rendered": root / "rendered"}
                 config["background"] = None
                 if name.startswith("UNKNOWN"):
@@ -289,6 +303,8 @@ class BuilderTests(unittest.TestCase):
                 if invalid_sheet:
                     sheet.save(assets / "NUMBERS_GREEN.png")
                 config = load_config(ROOT / "config.yaml")
+                config.pop("pdf")
+                config.pop("back")
                 config["paths"] = {"assets": assets, "processed": root / "processed", "rendered": root / "rendered"}
                 config["background"] = None
                 with self.assertLogs("magichien_builder", level="WARNING") as logs:

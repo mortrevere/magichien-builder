@@ -53,8 +53,13 @@ def load_config(path):
     dimensions(config["card"])
     for key in ("assets", "processed", "rendered"):
         config["paths"][key] = (path.parent / config["paths"][key]).resolve()
-    if config.get("background"):
-        config["background"] = (path.parent / config["background"]).resolve()
+    for key in ("background", "back"):
+        if config.get(key):
+            config[key] = (path.parent / config[key]).resolve()
+    if config.get("pdf") is not None:
+        if not isinstance(config["pdf"], dict):
+            raise ValueError("pdf must be a mapping")
+        config["pdf"]["icc_profile"] = (path.parent / config["pdf"]["icc_profile"]).resolve()
     return config
 
 

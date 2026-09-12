@@ -7,9 +7,14 @@ card:
   size_mm: [63, 89]
   # Replace size_mm with size_px: [744, 1051] to specify trim pixels.
   dpi: 300
-  bleed_mm: 3
+  bleed_mm: 2.5
+  safe_margin_mm: 4
 
 background: assets/background.png
+back: assets/BACK.png
+
+pdf:
+  icc_profile: assets/profiles/PSOcoated_v3.icc
 
 cleanup:
   # Normalized source coordinates: left, top, right, bottom.
@@ -19,6 +24,9 @@ cleanup:
     background.png:
       crop: [0, 0, 1, 1]
       trim: false
+    BACK.png:
+      crop: [0, 0, 1, 1]
+      trim: true
 
 digits:
   detection_alpha: 32
@@ -30,7 +38,7 @@ layout:
   frame:
     # Center and maximum size, as fractions of the trim canvas.
     center: [0.5, 0.5]
-    size: [0.94, 0.94]
+    size: [0.87, 0.87]
   subject:
     # Center and maximum size, as fractions of the fitted frame.
     center: [0.5, 0.5]

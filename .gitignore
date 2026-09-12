@@ -5,3 +5,4 @@ build/
 dist/
 assets/processed/
 preview/*.tar.gz
+preview/*.pdf

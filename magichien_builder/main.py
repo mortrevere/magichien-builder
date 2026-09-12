@@ -13,6 +13,7 @@ import yaml
 
 from .assets import AssetCleaner, SPLIT_GUIDANCE, discover_cards, split_digits
 from .config import dimensions, layout_for, load_config, number, pair
+from .pdf import check_safe_margin, prepare_pdf, safe_area, write_pdf
 
 
 logger = logging.getLogger(__name__)
@@ -28,9 +29,15 @@ def position(center, origin, size):
     return tuple(o + c * s for c, o, s in zip(pair(center, "center"), origin, size))
 
 
-def overlay(canvas_size, image, center):
+def overlay(canvas_size, image, center, safe_box=None):
     layer = Image.new("RGBA", canvas_size)
     xy = tuple(round(c - s / 2) for c, s in zip(center, image.size))
+    bounds = image.getchannel("A").getbbox()
+    if safe_box and bounds:
+        left, top, right, bottom = safe_box
+        if (xy[0] + bounds[0] < left or xy[1] + bounds[1] < top or
+                xy[0] + bounds[2] > right or xy[1] + bounds[3] > bottom):
+            raise ValueError("Artwork enters the safety margin (checked before canvas clipping)")
     layer.alpha_composite(image, xy)
     return layer, xy
 
@@ -56,17 +63,18 @@ def number_image(value, digits, height, spacing):
 
 def render_card(subject, frame, digits, value, background, card, layout):
     trim, full, offset, dpi = dimensions(card)
+    safe_box = safe_area(card) if card.get("safe_margin_mm") is not None else None
     if background is None:
         base = Image.new("RGBA", full)
     else:
         base = ImageOps.fit(background, full, method=Image.Resampling.LANCZOS)
     frame_box = tuple(a * b for a, b in zip(pair(layout["frame"]["size"], "frame size", True), trim))
     frame = fitted(frame, frame_box)
-    frame_layer, frame_origin = overlay(full, frame, position(layout["frame"]["center"], offset, trim))
+    frame_layer, frame_origin = overlay(full, frame, position(layout["frame"]["center"], offset, trim), safe_box)
     settings = layout["subject"]
     subject_box = tuple(a * b for a, b in zip(pair(settings["size"], "subject size", True), frame.size))
     subject = fitted(subject, subject_box, settings.get("scale", 1))
-    subject_layer, _ = overlay(full, subject, position(settings["center"], frame_origin, frame.size))
+    subject_layer, _ = overlay(full, subject, position(settings["center"], frame_origin, frame.size), safe_box)
     numbers = Image.new("RGBA", full)
     if value is not None:
         settings = layout["numbers"]
@@ -83,7 +91,7 @@ def render_card(subject, frame, digits, value, background, card, layout):
             x, y = position(placement["center"], frame_origin, frame.size)
             alignment = {"left": -1, "center": 0, "right": 1}[placement.get("align", "center")]
             x += alignment * (width - rotated.width) / 2
-            layer, _ = overlay(full, rotated, (x, y))
+            layer, _ = overlay(full, rotated, (x, y), safe_box)
             numbers = Image.alpha_composite(numbers, layer)
     layers = {"01-background": base, "02-subject": subject_layer,
               "03-frame": frame_layer, "04-numbers": numbers}
@@ -93,9 +101,12 @@ def render_card(subject, frame, digits, value, background, card, layout):
     return result, layers, dpi
 
 
-def write_catalog(cards, directory):
-    cards = sorted(cards, key=lambda card: (card[2] is not None, card[1],
-                                           int(card[2]) if card[2] is not None else 0, card[0]))
+def card_order(card):
+    return card[2] is not None, card[1], int(card[2]) if card[2] is not None else 0, card[0]
+
+
+def write_catalog(cards, directory, back=False, pdf=False):
+    cards = sorted(cards, key=card_order)
     lines = ["# Cards", "", f"{len(cards)} rendered cards. Special cards first, then families in numeric order.", ""]
     page = ['''<!doctype html>
 <html lang="en">
@@ -131,10 +142,16 @@ html:has(#gallery[open]) { overflow: hidden; }
 #gallery-caption { position: absolute; bottom: 12px; left: 0; width: 100%; margin: 0;
                      text-align: center; pointer-events: none; font-size: 14px; }
 </style>
-<header><h1>Magichien</h1><a href="rendered-cards.tar.gz" download>Download all cards</a></header>
-<main>''']
-    for group, members in groupby(cards, key=lambda card: "Special cards" if card[2] is None else card[1]):
-        members = list(members)
+<header><h1>Magichien</h1><div>Download all cards:
+<a href="rendered-cards.tar.gz" download>tar.gz</a>''']
+    if pdf:
+        page.append(' · <a href="rendered-cards.pdf" download>PDF</a>')
+    page.append('</div></header><main>')
+    groups = [(group, list(members)) for group, members in groupby(
+        cards, key=lambda card: "Special cards" if card[2] is None else card[1])]
+    if back:
+        groups.insert(0, ("Shared back", [("BACK", "", None)]))
+    for group, members in groups:
         lines.extend([f"## {escape(group)}", "", "| Card | Preview |", "| --- | --- |"])
         page.append(f'<section><h2>{escape(group)} ({len(members)})</h2><div class="cards">')
         for stem, _, _ in members:
@@ -194,6 +211,15 @@ def build(config, process_only=False):
     background_path = config.get("background")
     if background_path and background_path not in sources:
         raise ValueError("Background must be a PNG directly inside the assets directory")
+    back_path = config.get("back")
+    if back_path and back_path not in sources:
+        raise ValueError("Back must be a PNG directly inside the assets directory")
+    if back_path and back_path == background_path:
+        raise ValueError("Back and background must be different images")
+    pdf_enabled = config.get("pdf") is not None and not process_only
+    if pdf_enabled and not back_path:
+        raise ValueError("PDF export requires a shared back")
+    pdf_settings = prepare_pdf(config) if pdf_enabled else None
     # Generated directories must never coincide with or contain source assets.
     for output in (paths["processed"], paths["rendered"]):
         if output == paths["assets"] or output in paths["assets"].parents:
@@ -213,7 +239,7 @@ def build(config, process_only=False):
             except ValueError as error:
                 logger.warning("%s: numbers cannot be cleanly split: %s. %s "
                                "Cards requiring this sheet will be skipped.", path.name, error, SPLIT_GUIDANCE)
-    cards = discover_cards(sources, background_path)
+    cards = discover_cards([p for p in sources if p != back_path], background_path)
     if not process_only:
         if not cards:
             raise ValueError("No card subjects matched <FAMILY>_<number> or <FAMILY>_NN*")
@@ -230,6 +256,9 @@ def build(config, process_only=False):
                     continue
             ready.append((stem, family, value))
         logger.info("Skipped %d cards with unavailable numbers", len(cards) - len(ready))
+        if pdf_enabled and len(cards) != len(ready):
+            skipped = sorted(set(c[0] for c in cards) - set(c[0] for c in ready))
+            raise ValueError("Cannot export an incomplete PDF; skipped cards: " + ", ".join(skipped))
         cards = ready
     for stem, image in cleaned.items():
         target = paths["processed"] / "cleaned" / f"{stem}.png"
@@ -243,16 +272,17 @@ def build(config, process_only=False):
     print(f"Processed {len(cleaned)} assets and {sum(map(len, sheets.values()))} digits: {paths['processed']}")
     if process_only:
         return []
+    render_settings = dict(config["card"])
+    if pdf_enabled:
+        render_settings.setdefault("safe_margin_mm", 4)
     background = cleaned[background_path.stem] if background_path else None
     paths["rendered"].mkdir(parents=True, exist_ok=True)
     previews = paths["rendered"] / "previews"
     previews.mkdir(exist_ok=True)
 
-    def build_card(card):
-        stem, family, value = card
-        result, layers, dpi = render_card(cleaned[stem], cleaned[f"FRAME_{family}"],
-                                          sheets.get(family, {}), value, background,
-                                          config["card"], layout_for(config, family, filenames[stem]))
+    def export_card(stem, result, layers, dpi):
+        if pdf_enabled:
+            check_safe_margin(stem, layers, config["card"])
         target = paths["processed"] / "layers" / stem
         target.mkdir(parents=True, exist_ok=True)
         for name, layer in layers.items():
@@ -263,11 +293,32 @@ def build(config, process_only=False):
         result.save(previews / f"{stem}.webp", quality=85)
         return output
 
+    def build_card(card):
+        stem, family, value = card
+        try:
+            return export_card(stem, *render_card(
+                cleaned[stem], cleaned[f"FRAME_{family}"], sheets.get(family, {}), value, background,
+                render_settings, layout_for(config, family, filenames[stem])))
+        except ValueError as error:
+            raise ValueError(f"{stem}: {error}") from error
+
     with ThreadPoolExecutor(max_workers=8) as workers:
         outputs = list(workers.map(build_card, cards))
-    write_catalog(cards, paths["rendered"])
     archive_files = [*outputs, *(previews / f"{stem}.webp" for stem, _, _ in cards),
                      paths["rendered"] / "CARDS.md", paths["rendered"] / "index.html"]
+    if back_path:
+        # The back is already a complete design: reuse frame placement without a subject or numbers.
+        transparent = Image.new("RGBA", (1, 1))
+        back_output = export_card("BACK", *render_card(
+            transparent, cleaned[back_path.stem], {}, None, background, render_settings,
+            layout_for(config, "BACK", back_path.name)))
+        archive_files.extend([back_output, previews / "BACK.webp"])
+    if pdf_enabled:
+        pdf_path = paths["rendered"] / "rendered-cards.pdf"
+        ordered = [paths["rendered"] / f"{stem}.png" for stem, _, _ in sorted(cards, key=card_order)]
+        write_pdf([back_output, *ordered], pdf_path, config["card"], pdf_settings)
+        archive_files.append(pdf_path)
+    write_catalog(cards, paths["rendered"], back=bool(back_path), pdf=pdf_enabled)
     with tarfile.open(paths["rendered"] / "rendered-cards.tar.gz", "w:gz") as archive:
         for output in archive_files:
             archive.add(output, arcname=output.relative_to(paths["rendered"]))
@@ -277,7 +328,7 @@ def build(config, process_only=False):
 
 def main():
     logging.basicConfig(level=logging.INFO, format="%(levelname)s: %(message)s")
-    parser = argparse.ArgumentParser(description="Render a printable PNG card deck from YAML and assets.")
+    parser = argparse.ArgumentParser(description="Render a PNG card deck and optional print PDF from YAML and assets.")
     parser.add_argument("--config", type=Path, default=Path("config.yaml"))
     parser.add_argument("--process-only", action="store_true", help="Clean assets and split digits without rendering cards")
     args = parser.parse_args()
