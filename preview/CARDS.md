@@ -1,6 +1,6 @@
 # Cards
 
-57 rendered cards. Special cards first, then families in numeric order.
+56 rendered cards. Special cards first, then families in numeric order.
 
 ## Shared back
 
@@ -88,4 +88,3 @@
 | YELLOW_8 | <img src="YELLOW_8.png" alt="YELLOW_8" width="180"> |
 | YELLOW_10 | <img src="YELLOW_10.png" alt="YELLOW_10" width="180"> |
 | YELLOW_12 | <img src="YELLOW_12.png" alt="YELLOW_12" width="180"> |
-| YELLOW_13 | <img src="YELLOW_13.png" alt="YELLOW_13" width="180"> |
