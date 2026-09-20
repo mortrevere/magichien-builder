@@ -76,13 +76,25 @@ cards:
     subject:
       center: [0.49, 0.49]
       scale: 1.08
+  BLUE_13.png:
+    subject:
+      scale: 0.96
   GREEN_1.png:
     subject:
       scale: 1.06
+  GREEN_2.png:
+    subject:
+      center: [0.5, 0.54]
+  GREEN_4.png:
+    subject:
+      center: [0.5, 0.54]
   GREEN_5.png:
     subject:
       center: [0.52, 0.5]
       scale: 1.06
+  GREEN_6.png:
+    subject:
+      center: [0.54, 0.54]
   GREEN_8.png:
     subject:
       center: [0.52, 0.5]
@@ -142,9 +154,7 @@ cards:
   YELLOW_10.png:
     subject:
       scale: 1.06
-  YELLOW_11.png:
-    subject:
-      scale: 1.07
   YELLOW_13.png:
     subject:
       center: [0.45, 0.5]
+      scale: 0.95
