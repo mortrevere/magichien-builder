@@ -67,7 +67,14 @@ def render_card(subject, frame, digits, value, background, card, layout):
     if background is None:
         base = Image.new("RGBA", full)
     else:
-        base = ImageOps.fit(background, full, method=Image.Resampling.LANCZOS)
+        # Fit the finished card, then mirror its edges into the bleed without enlarging the texture.
+        background = ImageOps.fit(background, trim, method=Image.Resampling.LANCZOS)
+        base = Image.new("RGBA", full)
+        for column in (-1, 0, 1):
+            tile = ImageOps.mirror(background) if column else background
+            for row in (-1, 0, 1):
+                base.paste(ImageOps.flip(tile) if row else tile,
+                           (offset[0] + column * trim[0], offset[1] + row * trim[1]))
     frame_box = tuple(a * b for a, b in zip(pair(layout["frame"]["size"], "frame size", True), trim))
     frame = fitted(frame, frame_box)
     frame_layer, frame_origin = overlay(full, frame, position(layout["frame"]["center"], offset, trim), safe_box)

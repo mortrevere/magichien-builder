@@ -72,7 +72,8 @@ All file paths are relative to the configuration file. The main settings are:
 The supplied configuration makes **63 × 89 mm cards at 300 DPI**, with
 **2.5 mm bleed** around each edge. Each full PNG is **803 × 1110 pixels**;
 integer pixel rounding introduces less than 0.03 mm of size difference.
-The PDF uses exact **68 × 94 mm** pages and a centered **63 × 89 mm TrimBox**.
+The PDF has a **63 × 89 mm TrimBox** and **68 × 94 mm BleedBox**.
+Its **78 × 104 mm** pages leave room for crop marks outside the bleed.
 Print at actual size with automatic page fitting disabled.
 
 ```yaml
@@ -105,8 +106,8 @@ you rename or replace the back. Back placement can be adjusted with the
 `frame` fields under `cards.BACK.png`. It does not increase the deck's card count.
 
 The PDF contains the shared back followed by fronts in gallery order (special
-cards, then families in numeric order). The current 59-card deck produces
-60 pages, not 118. It embeds losslessly compressed CMYK images and a CMYK
+cards, then families in numeric order). The current 60-card deck produces
+61 pages. It embeds losslessly compressed CMYK images and a CMYK
 output intent, with PDF/X-4 identification and metadata. There are no fonts,
 interactive elements, or transparency in the PDF.
 
@@ -116,18 +117,22 @@ pixels using relative colorimetric intent and black-point compensation.
 Change `pdf.icc_profile` to use another CMYK output profile. PNGs and browser
 previews stay RGB; CMYK conversion can change colours.
 
-Geometry follows the shop's [card-specific technical sheet](https://www.jeudecartespersonnalise.fr/wp-content/uploads/2025/04/fiche-technique-jeu-de-carte.pdf):
-exact full-bleed page size, explicit trim/bleed boxes, and no drawn cut outlines
-or rounded-corner masks. We omit external crop marks to retain the requested
-68 × 94 mm pages, despite the broader
-[template page](https://www.jeudecartespersonnalise.fr/ressources/gabarits/)
-recommending marks for professional software exports.
+The export follows Print Europe's [card guide](https://docs.printeurope.fr/PRINTEUROPE_GUIDE_PAO.pdf)
+(card specifications, pp. 18–20): one face per page, shared back first,
+CMYK at 300 DPI, explicit trim and bleed boxes, and no drawn corner masks.
+The chosen 2.5 mm bleed exceeds the card section's 2 mm minimum; the Canva
+tutorial separately uses 3 mm. We retain 4 mm foreground clearance, above
+their 3 mm minimum. Eight crop marks sit outside the bleed in 100% black ink.
+The background is fitted to the trimmed card and its edges are mirrored into
+the bleed, preserving the supplied texture's resolution at the finished size.
 
 PDF export requires a back, an opaque background, at least 300 DPI, 2.5 mm
-bleed, and at least 4 mm foreground clearance. Missing profiles, unsafe
-placement, skipped fronts, empty decks, and PDFs over 500 MB fail the build.
+bleed, and at least 4 mm foreground clearance. CMYK ink coverage must not
+exceed Print Europe's 300% limit. Missing profiles, unsafe placement, skipped
+fronts, empty decks, excess ink, and PDFs over the builder's 500 MB limit fail
+the build.
 The last successful PDF is replaced only after the new PDF passes structural
-checks. These checks are not an independent PDF/X certification; the shop's
+checks. These checks are not an independent PDF/X certification; Print Europe's
 file review and proof remain the final print check.
 
 ### Adjust artwork and numbers

@@ -6,7 +6,7 @@ import unittest
 from unittest.mock import patch
 import xml.etree.ElementTree as ET
 
-from PIL import Image, ImageCms, ImageOps
+from PIL import Image, ImageCms
 from pypdf import PdfReader
 
 from magichien_builder.assets import AssetCleaner
@@ -53,12 +53,13 @@ class PrintTests(unittest.TestCase):
                 self.assertEqual(xmp.find('.//{http://www.npes.org/pdfx/ns/id/}GTS_PDFXVersion').text, 'PDF/X-4')
                 self.assertEqual(xmp.find('.//{http://ns.adobe.com/pdf/1.3/}Producer').text, pdf.metadata.producer)
                 for page, path in zip(pdf.pages, images):
-                    for box, expected in ((page.mediabox, [0, 0, 68, 94]),
-                                          (page.bleedbox, [0, 0, 68, 94]),
-                                          (page.trimbox, [2.5, 2.5, 65.5, 91.5])):
+                    for box, expected in ((page.mediabox, [0, 0, 78, 104]),
+                                          (page.bleedbox, [5, 5, 73, 99]),
+                                          (page.trimbox, [7.5, 7.5, 70.5, 96.5])):
                         for actual, mm in zip(box, expected):
                             self.assertAlmostEqual(float(actual) / MM_TO_PT, mm, places=6)
                     self.assertNotIn("/ArtBox", page)
+                    self.assertEqual(page.get_contents().get_data().count(b" l S\n"), 8)
                     xobjects = page["/Resources"]["/XObject"]
                     self.assertEqual(len(xobjects), 1)
                     image = xobjects["/Card"]
@@ -77,6 +78,11 @@ class PrintTests(unittest.TestCase):
                     write_pdf(images, target, config["card"], settings)
             self.assertEqual(target.read_bytes(), original)
             self.assertEqual(list(directory.glob('.print-*')), [])
+            with patch("magichien_builder.pdf.ImageCms.applyTransform",
+                       return_value=Image.new("CMYK", (803, 1110), (255, 255, 255, 255))):
+                with self.assertRaisesRegex(ValueError, "ink coverage.*300%"):
+                    write_pdf(images, target, config["card"], settings)
+            self.assertEqual(target.read_bytes(), original)
             with self.assertRaisesRegex(ValueError, "at least one card"):
                 write_pdf(images[:1], target, config["card"], settings)
             Image.new("RGBA", (803, 1110)).save(images[0])
@@ -100,9 +106,14 @@ class PrintTests(unittest.TestCase):
         check_safe_margin("BACK", layers, config["card"])
         self.assertEqual(result.size, (803, 1110))
         self.assertEqual(result.getchannel("A").getextrema(), (255, 255))
-        expected_background = ImageOps.fit(background, result.size, method=Image.Resampling.LANCZOS)
-        for point in ((0, 0), (802, 0), (0, 1109), (802, 1109)):
-            self.assertEqual(result.getpixel(point), expected_background.getpixel(point))
+        # The trim background keeps its original pixels; bleed continues the edge texture.
+        trim, _, offset, _ = dimensions(config["card"])
+        base = layers["01-background"]
+        self.assertEqual(base.crop((offset[0], offset[1], offset[0] + trim[0],
+                                   offset[1] + trim[1])).tobytes(), background.tobytes())
+        self.assertEqual(base.getpixel((offset[0] - 1, offset[1])), background.getpixel((0, 0)))
+        self.assertEqual(base.getpixel((offset[0], offset[1] - 1)), background.getpixel((0, 0)))
+        self.assertEqual(base.getchannel("A").getextrema(), (255, 255))
         for center in ((.1, .5), (10, 10)):
             layout = deepcopy(config["layout"])
             layout["frame"]["center"] = center

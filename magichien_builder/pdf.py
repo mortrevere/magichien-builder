@@ -5,7 +5,7 @@ from pathlib import Path
 from tempfile import NamedTemporaryFile
 from uuid import uuid4
 
-from PIL import Image, ImageCms
+from PIL import Image, ImageCms, ImageMath
 from pypdf import PdfReader, PdfWriter
 from pypdf.generic import (
     ArrayObject, DecodedStreamObject, DictionaryObject, NameObject,
@@ -17,6 +17,7 @@ from .config import dimensions, number, pair
 
 MAX_PDF_BYTES = 500_000_000
 MM_TO_PT = 72 / 25.4
+MARK_MARGIN = 5 * MM_TO_PT
 
 
 def page_sizes(card):
@@ -79,7 +80,22 @@ def write_pdf(images, target, card, settings):
     trim_mm, full_mm = page_sizes(card)
     width, height = (v * MM_TO_PT for v in full_mm)
     bleed = card["bleed_mm"] * MM_TO_PT
-    trim_box = [bleed, bleed, bleed + trim_mm[0] * MM_TO_PT, bleed + trim_mm[1] * MM_TO_PT]
+    trim_box = [MARK_MARGIN + bleed, MARK_MARGIN + bleed,
+                MARK_MARGIN + bleed + trim_mm[0] * MM_TO_PT,
+                MARK_MARGIN + bleed + trim_mm[1] * MM_TO_PT]
+    bleed_box = [MARK_MARGIN, MARK_MARGIN, MARK_MARGIN + width, MARK_MARGIN + height]
+    media_box = [0, 0, width + 2 * MARK_MARGIN, height + 2 * MARK_MARGIN]
+    gap, length = 3 * MM_TO_PT, 3 * MM_TO_PT
+    left, bottom, right, top = trim_box
+    marks = []
+    for y in (bottom, top):
+        marks.extend([(left - gap - length, y, left - gap, y),
+                      (right + gap, y, right + gap + length, y)])
+    for x in (left, right):
+        marks.extend([(x, bottom - gap - length, x, bottom - gap),
+                      (x, top + gap, x, top + gap + length)])
+    crop_marks = "q 0 0 0 1 K 0.25 w\n" + "".join(
+        f"{x1:.8f} {y1:.8f} m {x2:.8f} {y2:.8f} l S\n" for x1, y1, x2, y2 in marks) + "Q\n"
     expected_size = dimensions(card)[1]
     writer = PdfWriter()
     writer.pdf_header = "%PDF-1.6"
@@ -102,6 +118,12 @@ def write_pdf(images, target, card, settings):
             if source.mode == "RGBA" and source.getchannel("A").getextrema() != (255, 255):
                 raise ValueError(f"{path.name}: PDF requires an opaque background")
             cmyk = ImageCms.applyTransform(source.convert("RGB"), transform)
+        coverage = ImageMath.lambda_eval(
+            lambda channels: channels["C"] + channels["M"] + channels["Y"] + channels["K"],
+            **dict(zip("CMYK", cmyk.split())),
+        )
+        if coverage.convert("I").getextrema()[1] > 3 * 255:
+            raise ValueError(f"{path.name}: CMYK ink coverage exceeds Print Europe's 300% limit")
         image = DecodedStreamObject()
         image.set_data(cmyk.tobytes())
         image.update({
@@ -113,14 +135,15 @@ def write_pdf(images, target, card, settings):
             NameObject("/BitsPerComponent"): NumberObject(8),
             NameObject("/Intent"): NameObject("/RelativeColorimetric"),
         })
-        page = writer.add_blank_page(width, height)
+        page = writer.add_blank_page(media_box[2], media_box[3])
         page.trimbox = RectangleObject(trim_box)
-        page.bleedbox = RectangleObject([0, 0, width, height])
+        page.bleedbox = RectangleObject(bleed_box)
         page[NameObject("/Resources")] = DictionaryObject({
             NameObject("/XObject"): DictionaryObject({NameObject("/Card"): writer._add_object(image.flate_encode())}),
         })
         content = DecodedStreamObject()
-        content.set_data(f"q {width:.8f} 0 0 {height:.8f} 0 0 cm /Card Do Q\n".encode("ascii"))
+        content.set_data((f"q {width:.8f} 0 0 {height:.8f} {MARK_MARGIN:.8f} {MARK_MARGIN:.8f} cm /Card Do Q\n"
+                          + crop_marks).encode("ascii"))
         page[NameObject("/Contents")] = writer._add_object(content)
 
     now = datetime.now(timezone.utc)
@@ -160,15 +183,15 @@ def write_pdf(images, target, card, settings):
     try:
         writer.write(temporary)
         if temporary.stat().st_size > MAX_PDF_BYTES:
-            raise ValueError("PDF exceeds the printer's 500 MB upload limit")
+            raise ValueError("PDF exceeds the builder's 500 MB size limit")
         with PdfReader(temporary, strict=True) as reader:
             if len(reader.pages) != len(images) or reader.is_encrypted:
                 raise ValueError("PDF validation failed: incorrect page count or encryption")
             if reader.trailer["/Root"]["/OutputIntents"][0]["/DestOutputProfile"].get_data() != profile.tobytes():
                 raise ValueError("PDF validation failed: incorrect output profile")
             for page in reader.pages:
-                for actual, expected in ((page.mediabox, [0, 0, width, height]),
-                                         (page.bleedbox, [0, 0, width, height]), (page.trimbox, trim_box)):
+                for actual, expected in ((page.mediabox, media_box),
+                                         (page.bleedbox, bleed_box), (page.trimbox, trim_box)):
                     if any(abs(float(a) - b) > 0.00001 for a, b in zip(actual, expected)):
                         raise ValueError("PDF validation failed: incorrect page boxes")
                 image = page["/Resources"]["/XObject"]["/Card"]
